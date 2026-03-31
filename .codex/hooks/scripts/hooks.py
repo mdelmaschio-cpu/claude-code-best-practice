@@ -264,9 +264,40 @@ def get_session_context():
     This output goes to stdout and feeds into the model's context.
 
     Returns:
-        String of context information
+        String of context information including date/time, cwd, git branch, and git status
     """
-    return "hooks context: run"
+    lines = []
+
+    # Current date/time
+    lines.append(f"date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    # Working directory
+    lines.append(f"cwd: {Path.cwd()}")
+
+    # Git branch
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            lines.append(f"git branch: {result.stdout.strip()}")
+    except Exception:
+        pass
+
+    # Git working tree status
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            status = "clean" if not result.stdout.strip() else "uncommitted changes"
+            lines.append(f"git status: {status}")
+    except Exception:
+        pass
+
+    return "\n".join(lines)
 
 
 def parse_args(argv):
