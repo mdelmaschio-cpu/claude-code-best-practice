@@ -30,6 +30,23 @@ Skills in `.claude/skills/<name>/SKILL.md` use YAML frontmatter:
 - `agent`: Subagent type for `context: fork` (default: `general-purpose`)
 - `hooks`: Lifecycle hooks scoped to this skill
 
+### Repository Agents
+- `presentation-curator`: Manages `presentation/index.html` with 3 preloaded skills — always delegate via Agent tool (see `.claude/rules/presentation.md`)
+- `weather-agent`: Fetches Dubai weather using preloaded `weather-fetcher` skill; `model: sonnet`, `memory: project`, scoped `PreToolUse` hook
+- `time-agent`: Displays current time in PKT (UTC+5)
+- `development-workflows-research-agent`: Reads GitHub repos, counts agents/skills/commands, reports on workflow repositories; `permissionMode: bypassPermissions`, `maxTurns: 30`
+
+### Repository Skills
+- `weather-fetcher`: Agent-preloaded skill for Open-Meteo temperature fetch (not user-invocable directly)
+- `weather-svg-creator`: Creates SVG weather card and writes `orchestration-workflow/weather.svg`
+- `agent-browser`: Browser automation via `agent-browser` CLI — navigate, snapshot, fill forms, click; uses `allowed-tools: Bash(agent-browser:*)`
+- `time-skill` / `time-command`: Display PKT time
+
+### Workflow Commands & Agents
+Nested under `.claude/commands/workflows/best-practice/` — one command per report type:
+- `workflow-claude-skills`, `workflow-claude-commands`, `workflow-claude-subagents`, `workflow-claude-settings`: Each launches a matching research agent from `.claude/agents/workflows/best-practice/` to detect documentation drift
+- `.claude/commands/workflows/development-workflows.md`: Updates the DEVELOPMENT WORKFLOWS table in README.md using `development-workflows-research-agent`
+
 ### Presentation System
 See `.claude/rules/presentation.md` — all presentation work is delegated to the `presentation-curator` agent.
 
@@ -40,7 +57,7 @@ Cross-platform sound notification system in `.claude/hooks/`:
 - `config/hooks-config.local.json`: Personal overrides (git-ignored)
 - `sounds/`: Audio files organized by hook event (generated via ElevenLabs TTS)
 
-Hook events configured in `.claude/settings.json`: PreToolUse, PostToolUse, UserPromptSubmit, Notification, Stop, SubagentStart, SubagentStop, PreCompact, SessionStart, SessionEnd, Setup, PermissionRequest, TeammateIdle, TaskCompleted, ConfigChange.
+Hook events configured in `.claude/settings.json`: PreToolUse, PostToolUse, PostToolUseFailure, UserPromptSubmit, Notification, Stop, SubagentStart, SubagentStop, PreCompact, PostCompact, SessionStart, SessionEnd, Setup, PermissionRequest, TeammateIdle, TaskCompleted, ConfigChange, WorktreeCreate, WorktreeRemove, InstructionsLoaded, Elicitation, ElicitationResult.
 
 Special handling: git commits trigger `pretooluse-git-committing` sound.
 
@@ -106,9 +123,21 @@ From experience with this repository:
 - Use browser automation MCPs (Claude in Chrome, Playwright, Chrome DevTools) for Claude to inspect console logs
 - Provide screenshots when reporting visual issues
 
+### Settings Highlights (`.claude/settings.json`)
+- `outputStyle`: Sets AI response style (e.g., `"Explanatory"`)
+- `plansDirectory`: Points plan/report outputs to `./reports`
+- `env.CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`: Auto-compact threshold (set to `"80"`)
+- `spinnerVerbs` / `spinnerTipsOverride`: Custom loading messages
+- `respectGitignore: true`: Keeps gitignored files out of context
+
+### Agent Teams
+`agent-teams/` contains the prompt and output for multi-agent parallel workflows. See `implementation/claude-agent-teams-implementation.md`.
+
 ## Documentation
 
 See `.claude/rules/markdown-docs.md` for documentation standards. Key docs:
 - `best-practice/claude-subagents.md`: Subagent frontmatter, hooks, and repository agents
+- `best-practice/claude-skills.md`: Skill frontmatter fields and patterns
 - `best-practice/claude-commands.md`: Slash command patterns and built-in command reference
+- `reports/claude-agent-memory.md`: Agent memory scopes (`user`, `project`, `local`)
 - `orchestration-workflow/orchestration-workflow.md`: Weather system flow diagram
