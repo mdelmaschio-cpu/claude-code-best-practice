@@ -18,7 +18,7 @@ A demonstration of two distinct skill patterns via the **Command → Agent → S
 Two skill patterns: agent skills (preloaded via `skills:` field) vs skills (invoked via `Skill` tool). See `orchestration-workflow/orchestration-workflow.md` for the complete flow diagram.
 
 ### Skill Definition Structure
-Skills in `.claude/skills/<name>/SKILL.md` use YAML frontmatter:
+Skills in `.claude/skills/<name>/SKILL.md` use YAML frontmatter (13 fields):
 - `name`: Display name and `/slash-command` (defaults to directory name)
 - `description`: When to invoke (recommended for auto-discovery)
 - `argument-hint`: Autocomplete hint (e.g., `[issue-number]`)
@@ -26,21 +26,25 @@ Skills in `.claude/skills/<name>/SKILL.md` use YAML frontmatter:
 - `user-invocable`: Set `false` to hide from `/` menu (background knowledge only)
 - `allowed-tools`: Tools allowed without permission prompts when skill is active
 - `model`: Model to use when skill is active
+- `effort`: Override model effort level (`low`, `medium`, `high`, `max`)
 - `context`: Set to `fork` to run in isolated subagent context
 - `agent`: Subagent type for `context: fork` (default: `general-purpose`)
 - `hooks`: Lifecycle hooks scoped to this skill
+- `paths`: Glob patterns that limit when skill auto-activates (matches working files)
+- `shell`: Shell for `` !`command` `` blocks — `bash` (default) or `powershell`
 
 ### Repository Agents
-- `presentation-curator`: Manages `presentation/index.html` with 3 preloaded skills — always delegate via Agent tool (see `.claude/rules/presentation.md`)
-- `weather-agent`: Fetches Dubai weather using preloaded `weather-fetcher` skill; `model: sonnet`, `memory: project`, scoped `PreToolUse` hook
-- `time-agent`: Displays current time in PKT (UTC+5)
+- `presentation-curator`: Manages `presentation/index.html`; preloads 3 skills (`presentation/vibe-to-agentic-framework`, `presentation/presentation-structure`, `presentation/presentation-styling`); self-evolves after each run — always delegate via Agent tool (see `.claude/rules/presentation.md`)
+- `weather-agent`: Fetches Dubai weather using preloaded `weather-fetcher` skill; `model: sonnet`, `memory: project`, scoped `PreToolUse`/`PostToolUse` hooks
+- `time-agent`: Displays current time in PKT (UTC+5); `model: haiku`, `maxTurns: 3`
 - `development-workflows-research-agent`: Reads GitHub repos, counts agents/skills/commands, reports on workflow repositories; `permissionMode: bypassPermissions`, `maxTurns: 30`
 
 ### Repository Skills
-- `weather-fetcher`: Agent-preloaded skill for Open-Meteo temperature fetch (not user-invocable directly)
+- `weather-fetcher`: Agent-preloaded skill for Open-Meteo temperature fetch (`user-invocable: false`)
 - `weather-svg-creator`: Creates SVG weather card and writes `orchestration-workflow/weather.svg`
 - `agent-browser`: Browser automation via `agent-browser` CLI — navigate, snapshot, fill forms, click; uses `allowed-tools: Bash(agent-browser:*)`
 - `time-skill` / `time-command`: Display PKT time
+- `presentation/vibe-to-agentic-framework`, `presentation/presentation-structure`, `presentation/presentation-styling`: Presentation curator's preloaded knowledge base; updated by the agent after each run
 
 ### Workflow Commands & Agents
 Nested under `.claude/commands/workflows/best-practice/` — one command per report type:
@@ -72,22 +76,23 @@ Agent(subagent_type="agent-name", description="...", prompt="...", model="haiku"
 Be explicit about tool usage in subagent definitions. Avoid vague terms like "launch" that could be misinterpreted as bash commands.
 
 ### Subagent Definition Structure
-Subagents in `.claude/agents/*.md` use YAML frontmatter:
+Subagents in `.claude/agents/*.md` use YAML frontmatter (16 fields). Note: agent files use `allowedTools:` key (not `tools`):
 - `name`: Subagent identifier
 - `description`: When to invoke (use "PROACTIVELY" for auto-invocation)
-- `tools`: Comma-separated allowlist of tools (inherits all if omitted). Supports `Agent(agent_type)` syntax
+- `allowedTools`: List of tools allowed (inherits all if omitted). Supports `Agent(agent_type)` syntax
 - `disallowedTools`: Tools to deny, removed from inherited or specified list
 - `model`: Model alias: `haiku`, `sonnet`, `opus`, or `inherit` (default: `inherit`)
 - `permissionMode`: Permission mode (e.g., `"acceptEdits"`, `"plan"`, `"bypassPermissions"`)
 - `maxTurns`: Maximum agentic turns before the subagent stops
 - `skills`: List of skill names to preload into agent context
 - `mcpServers`: MCP servers for this subagent (server names or inline configs)
-- `hooks`: Lifecycle hooks scoped to this subagent (all hook events are supported; `PreToolUse`, `PostToolUse`, and `Stop` are the most common)
+- `hooks`: Lifecycle hooks scoped to this subagent (`PreToolUse`, `PostToolUse`, and `Stop` are most common)
 - `memory`: Persistent memory scope — `user`, `project`, or `local` (see `reports/claude-agent-memory.md`)
 - `background`: Set to `true` to always run as a background task
 - `effort`: Effort level override: `low`, `medium`, `high`, `max` (default: inherits from session)
 - `isolation`: Set to `"worktree"` to run in a temporary git worktree
 - `color`: CLI output color for visual distinction
+- `initialPrompt`: Auto-submitted as the first user turn when agent runs as main session agent
 
 ### Configuration Hierarchy
 1. **Managed** (`managed-settings.json` / MDM plist / Registry): Organization-enforced, cannot be overridden
@@ -99,6 +104,14 @@ Subagents in `.claude/agents/*.md` use YAML frontmatter:
 
 ### Disable Hooks
 Set `"disableAllHooks": true` in `.claude/settings.local.json`, or disable individual hooks in `hooks-config.json`.
+
+### MCP Servers
+Configured in `.mcp.json` (project-level). Active servers in this repo:
+- `playwright`: Browser automation — `npx @playwright/mcp`
+- `context7`: Up-to-date library docs into context — `npx @upstash/context7-mcp`
+- `deepwiki`: GitHub repo wiki documentation — `npx deepwiki-mcp`
+
+See `best-practice/claude-mcp.md` for recommended daily-use servers.
 
 ## Answering Best Practice Questions
 
@@ -139,5 +152,19 @@ See `.claude/rules/markdown-docs.md` for documentation standards. Key docs:
 - `best-practice/claude-subagents.md`: Subagent frontmatter, hooks, and repository agents
 - `best-practice/claude-skills.md`: Skill frontmatter fields and patterns
 - `best-practice/claude-commands.md`: Slash command patterns and built-in command reference
+- `best-practice/claude-settings.md`: All 60+ settings and 100+ env vars (v2.1.86)
+- `best-practice/claude-mcp.md`: Recommended MCP servers and configuration
+- `best-practice/claude-memory.md`: CLAUDE.md writing guide and monorepo loading mechanics
+- `best-practice/claude-cli-startup-flags.md`: CLI flags and startup options
 - `reports/claude-agent-memory.md`: Agent memory scopes (`user`, `project`, `local`)
 - `orchestration-workflow/orchestration-workflow.md`: Weather system flow diagram
+
+## Content Directories
+
+Reference-only directories (not application code):
+- `tutorial/`: Day-0 setup guides (mac, linux, windows)
+- `tips/`: Boris Cherny and Thariq tip collections
+- `videos/`: Video/podcast transcript summaries
+- `development-workflows/`: Cross-model and RPi workflow examples
+- `changelog/`: Tracked changes per category (e.g., `changelog/development-workflows/`)
+- `agent-teams/`: Multi-agent parallel workflow prompt and sample output
